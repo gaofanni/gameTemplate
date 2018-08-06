@@ -4,9 +4,10 @@
 require('../../libs/laya.core');
 require('../../libs/laya.wxmini');
 require('../../libs/laya.webgl');
+require('../../libs/laya.ui.js')
 
 
-let { Browser, WebGL, Stage, Sprite, Handler, Stat, Tween, Ease, Util } = Laya
+let { Browser, WebGL, Stage, Sprite, Handler, Stat, Tween, Ease, Util, Dialog, Image, Button, List } = Laya
 Laya.MiniAdpter.init();
 
 const Bwidth = Browser.clientWidth * Browser.pixelRatio
@@ -25,6 +26,37 @@ const SW = (num) => {
 const SH = (num) => {
     return num * Bheight / 1206
 }
+class Item extends Laya.Sprite {
+    public static WID: number = SW(336)
+    public static HEI: number = SH(151)
+    private img: Laya.Image
+    private sp: Laya.Sprite
+
+    constructor() {
+        super()
+        this.size(Item.WID, Item.HEI)
+        this.img = new Laya.Image()
+        this.img.name = 'img'
+        this.addChild(this.img)
+        this.sp = new Sprite()
+        this.sp.graphics.drawRect(0, 0, SW(100), SH(100), '#000000')
+        this.sp.size(SW(100), SH(100))
+        this.sp.name = 'rect'
+        this.sp.zOrder = 10000;
+        this.addChild(this.sp)
+        this['rectLeft'] = SW(100)
+    }
+    public setImg(src: string): void {
+        this.img.skin = src
+    }
+    public setScale(scaleRadio: number, scaleRadioY: number): void {
+        this.scale(scaleRadio, scaleRadioY)
+    }
+    public bindEvent(fun, name) {
+        this[name].offAll(Laya.Event.CLICK)
+        this[name].once(Laya.Event.CLICK, this, fun)
+    }
+}
 class Game {
     r = Bwidth / 750
     rh = Bheight / 1206
@@ -33,6 +65,8 @@ class Game {
     road
     bgImage: string = require('../../images/bg-game.png')
     roadImage: string = require('../../images/road.png')
+    popImage: string = require('../../images/result-pop-bg.png')
+    closeImage: string = require('../../images/btn-close.png')
     /**豆娃四条道路的位置*/
     carPos: Array<{ beginPos: point, endPos: point }> = []
     /**计分板文字 */
@@ -140,6 +174,8 @@ class Game {
     isGameOver = false
     /**距离计分板背景图 */
     distanceImage: string = require('../../images/bg-distance.png')
+    UILayer;
+    buttonImage: string = require('../../images/button.png')
     constructor() {
         this.init()
     }
@@ -147,10 +183,14 @@ class Game {
         //初始化微信小游戏
         this.initStage();
         await this.loadImage()
+        this.initUILayer()
         this.drawBg()
+        this.drawButton()
         this.drawRoad()
         this.getRoute()
         this.drawDistance()
+        this.showList()
+        return
         this.gameBegin()
 
         this.stage.off(Laya.Event.MOUSE_DOWN, this, this.mouseDown)
@@ -159,6 +199,7 @@ class Game {
     }
     initStage() {
         Config.isAlpha = true;
+
         Laya.init(Bwidth, Bheight, WebGL);
         Laya.stage.alignV = Stage.ALIGN_MIDDLE;
         Laya.stage.alignH = Stage.ALIGN_CENTER;
@@ -167,7 +208,73 @@ class Game {
         Laya.stage.alpha = 1
         this.stage = Laya.stage
     }
+    drawButton() {
+        let button = new Button(this.buttonImage)
+        button.scale(this.r, this.rh)
+        button.stateNum = 1
+        button.label = '列表'
+        button.labelSize = SW(24)
+        button.labelColors = '#000000'
+        button.pos(Bwidth / 6 * 4.5, SW(48))
+        this.UILayer.addChild(button)
+        button.clickHandler = Handler.create(this, () => {
+            // this.showList()
+        }, null, false)
+    }
+    showList() {
+        console.log('showlist')
+        let list = new List()
 
+        list.itemRender = Item
+        list.repeatX = 1
+        list.repeatY = 6
+
+        list.x = (this.stage.width - Item.WID) / 2
+        list.y = (this.stage.height - Item.HEI * list.repeatY) / 2
+
+        list.vScrollBarSkin = ''
+        list.selectEnable = true
+        const render = (cell, index) => {
+            cell.setImg(cell.dataSource.img)
+            cell.setScale(cell.dataSource.scale, cell.dataSource.scale)
+            cell.bindEvent(() => {
+                console.log('da')
+                list.changeItem(index, { img: this.distanceImage, scale: this.r })
+            }, 'img')
+            cell.bindEvent(() => {
+                console.log('smal')
+                // list.changeItem(index, { img: this.distanceImage, scale: 1 })
+                // list.tweenTo(10, 2000)
+                let data = []
+                for (let i = 0; i < 4; i++) {
+                    data.push({ img: this.distanceImage, scale: 1 })
+                }
+                list.array = data
+            }, 'sp')
+        }
+        // list.mouseHandler = new Handler(this, (e: Laya.Event, index) => {
+        // if (e.type !== 'click') return
+        // if (e.currentTarget.mouseX <= e.target['rectLeft']) {
+        //     list.changeItem(index, { img: this.distanceImage, scale: this.r })
+        // } else {
+        //     list.changeItem(index, { img: this.distanceImage, scale: 1 })
+        // }
+        // })
+        list.renderHandler = new Handler(this, render)
+
+        let data = []
+        for (let i = 0; i < 2; i++) {
+            data.push({ img: this.distanceImage, scale: 1 })
+        }
+        list.array = data
+        this.stage.addChild(list)
+    }
+
+    initUILayer() {
+        let UILayer = new Sprite()
+        this.UILayer = UILayer
+        this.stage.addChild(this.UILayer)
+    }
     /**监听用户手势 */
     mouseDown() {
         let originMouse = this.stage.mouseX
@@ -181,7 +288,6 @@ class Game {
             if (curMouse - originMouse > SW(20)) {
                 // 向右滑
                 this.curCarPos < (this.carPos.length - 1) && this.curCarPos++
-                console.log(this.curCarPos)
             } else if (curMouse - originMouse < SW(20)) {
                 // 向左滑
                 this.curCarPos > 0 && this.curCarPos--
@@ -266,9 +372,10 @@ class Game {
                     const isHit = (curPos, carPos, ignore?) => {
                         return cur.type == 'hit' && !ignore && (curPos.y) < (carPos.y + carPos.height) && curPos.intersects(carPos)
                     }
-                    // if (isHit(curPos, carPos, cur.ignore)) {
-                    //     this.isGameOver = true;
-                    // }
+                    if (isHit(curPos, carPos, cur.ignore)) {
+                        this.isGameOver = true;
+                        this.showPop()
+                    }
 
                     this.setDistance(speedRate)
                 }
@@ -310,6 +417,47 @@ class Game {
             }
         }
         requestAnimationFrame(move)
+    }
+    showPop() {
+        UIConfig.closeDialogOnSide = false
+
+        let pop: Laya.Dialog = new Dialog()
+        let bg: Laya.Image = new Image(this.popImage)
+
+        /* 写上第几名 */
+        let txt = new Laya.Text()
+        txt.bold = true
+        txt.align = 'center'
+        txt.width = 667
+        txt.fontSize = 60
+        txt.color = '#ffffff'
+        txt.text = '第n名'
+        txt.pos(0, 190)
+        bg.addChild(txt)
+
+        /* 写上跑了几米 */
+        let txt2 = new Laya.Text()
+        txt2.bold = true
+        txt2.align = 'center'
+        txt2.width = 667
+        txt2.fontSize = 60
+        txt2.color = '#999999'
+        txt2.text = this.distance.toFixed(0) + 'm'
+        txt2.pos(0, 290)
+        bg.addChild(txt2)
+
+        bg.scale(this.r, this.rh)
+        pop.addChild(bg)
+
+        let close = new Button(this.closeImage)
+        close.name = Dialog.CLOSE
+        close.scale(this.r, this.rh)
+        close.stateNum = 1;
+        pop.addChild(close)
+
+        pop.popup()
+        pop.zOrder = 160000
+
     }
     /**生成景物 */
     createViews() {
@@ -393,7 +541,7 @@ class Game {
         let t = Laya.loader.getRes(viewImg)
         view.graphics.drawTexture(t, 0, 0)
         view.pivot(0, view.getBounds().height)
-        this.stage.addChild(view)
+        this.UILayer.addChild(view)
         view.scale(this.r, this.rh)
 
         let beginPos: point = { x: left, y: SH(1206 - 888) }
@@ -545,7 +693,7 @@ class Game {
             }
         }
         return new Promise(res => {
-            Laya.loader.load([this.bgImage, this.roadImage]
+            Laya.loader.load([this.bgImage, this.roadImage, this.popImage, this.closeImage, this.buttonImage]
                 .concat(this.carArr)
                 .concat(this.viewsArr)
                 .concat(hitPathArr)
@@ -563,7 +711,7 @@ class Game {
         bg.graphics.drawTexture(t, 0, 0)
         bg.scale(Bwidth / bg.getBounds().width, Bheight / bg.getBounds().height)
         bg.cacheAsBitmap = true;
-        this.stage.addChild(bg)
+        this.UILayer.addChild(bg)
     }
     drawRoad() {
         let road = new Sprite();
