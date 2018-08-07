@@ -7,7 +7,7 @@ require('../../libs/laya.webgl');
 require('../../libs/laya.ui.js')
 
 
-let { Browser, WebGL, Stage, Sprite, Handler, Stat, Tween, Ease, Util, Dialog, Image, Button, List } = Laya
+let { Browser, WebGL, Stage, Sprite, Handler, Stat, Tween, Ease, Util, Dialog, Image, Button, List, HSlider, Tab } = Laya
 Laya.MiniAdpter.init();
 
 const Bwidth = Browser.clientWidth * Browser.pixelRatio
@@ -16,16 +16,17 @@ const Bheight = Browser.clientHeight * Browser.pixelRatio
  * 计算出宽度与设计稿的缩放值
  * @param num 
  */
-const SW = (num) => {
+export const SW = (num) => {
     return num * Bwidth / 750
 }
 /**
  * 计算出高度与设计稿的缩放值
  * @param num 
  */
-const SH = (num) => {
+export const SH = (num) => {
     return num * Bheight / 1206
 }
+
 class Item extends Laya.Sprite {
     public static WID: number = SW(336)
     public static HEI: number = SH(151)
@@ -176,6 +177,7 @@ class Game {
     distanceImage: string = require('../../images/bg-distance.png')
     UILayer;
     buttonImage: string = require('../../images/button.png')
+    tabImage: string = require('../../images/tab.png')
     constructor() {
         this.init()
     }
@@ -185,12 +187,12 @@ class Game {
         await this.loadImage()
         this.initUILayer()
         this.drawBg()
-        this.drawButton()
+        this.drawButton('列表')
         this.drawRoad()
         this.getRoute()
         this.drawDistance()
-        this.showList()
-        return
+        // this.drawTab()
+        // return
         this.gameBegin()
 
         this.stage.off(Laya.Event.MOUSE_DOWN, this, this.mouseDown)
@@ -208,17 +210,43 @@ class Game {
         Laya.stage.alpha = 1
         this.stage = Laya.stage
     }
-    drawButton() {
+    drawTab() {
+        let tab = new Tab()
+        tab.skin = this.tabImage
+
+        tab.labelSize = SW(20)
+        tab.labels = '1,2,3'
+        tab.labelColors = '#f75555,#000000'
+        tab.labelPadding = '-5,0,0,0'
+        tab.space = SW(20)
+
+        tab.selectedIndex = 0
+        tab.stateNum = 2
+        tab.scale(this.r, this.rh)
+        tab.pos(SW(120), SH(200))
+        tab.selectHandler = new Handler(this, (index) => {
+            console.log(index)
+        })
+        this.stage.addChild(tab)
+    }
+    drawButton(txt) {
         let button = new Button(this.buttonImage)
         button.scale(this.r, this.rh)
         button.stateNum = 1
-        button.label = '列表'
-        button.labelSize = SW(24)
+        button.label = txt
+        button.labelSize = SW(20)
         button.labelColors = '#000000'
         button.pos(Bwidth / 6 * 4.5, SW(48))
         this.UILayer.addChild(button)
+        let list: Laya.List;
         button.clickHandler = Handler.create(this, () => {
-            // this.showList()
+            if (button.label != '关闭') {
+                list = this.showList()
+                button.label = '关闭'
+            } else {
+                list.destroy()
+                button.label = '列表'
+            }
         }, null, false)
     }
     showList() {
@@ -239,35 +267,30 @@ class Game {
             cell.setScale(cell.dataSource.scale, cell.dataSource.scale)
             cell.bindEvent(() => {
                 console.log('da')
-                list.changeItem(index, { img: this.distanceImage, scale: this.r })
+                list.changeItem(index, { img: this.distanceImage, scale: 1.6 })
             }, 'img')
             cell.bindEvent(() => {
                 console.log('smal')
-                // list.changeItem(index, { img: this.distanceImage, scale: 1 })
+                list.changeItem(index, { img: this.distanceImage, scale: 1 })
                 // list.tweenTo(10, 2000)
-                let data = []
-                for (let i = 0; i < 4; i++) {
-                    data.push({ img: this.distanceImage, scale: 1 })
-                }
-                list.array = data
+                // let data = []
+                // for (let i = 0; i < 4; i++) {
+                //     data.push({ img: this.distanceImage, scale: 1 })
+                // }
+                // list.array = data
             }, 'sp')
         }
-        // list.mouseHandler = new Handler(this, (e: Laya.Event, index) => {
-        // if (e.type !== 'click') return
-        // if (e.currentTarget.mouseX <= e.target['rectLeft']) {
-        //     list.changeItem(index, { img: this.distanceImage, scale: this.r })
-        // } else {
-        //     list.changeItem(index, { img: this.distanceImage, scale: 1 })
-        // }
-        // })
         list.renderHandler = new Handler(this, render)
 
         let data = []
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 12; i++) {
             data.push({ img: this.distanceImage, scale: 1 })
         }
         list.array = data
+        list.zOrder = 100000
         this.stage.addChild(list)
+        return list
+
     }
 
     initUILayer() {
@@ -420,6 +443,7 @@ class Game {
     }
     showPop() {
         UIConfig.closeDialogOnSide = false
+        UIConfig.popupBgAlpha = 0.8
 
         let pop: Laya.Dialog = new Dialog()
         let bg: Laya.Image = new Image(this.popImage)
@@ -451,7 +475,7 @@ class Game {
 
         let close = new Button(this.closeImage)
         close.name = Dialog.CLOSE
-        close.scale(this.r, this.rh)
+        close.scale(this.rh, this.rh)
         close.stateNum = 1;
         pop.addChild(close)
 
@@ -693,7 +717,7 @@ class Game {
             }
         }
         return new Promise(res => {
-            Laya.loader.load([this.bgImage, this.roadImage, this.popImage, this.closeImage, this.buttonImage]
+            Laya.loader.load([this.bgImage, this.roadImage, this.popImage, this.closeImage, this.buttonImage, this.tabImage]
                 .concat(this.carArr)
                 .concat(this.viewsArr)
                 .concat(hitPathArr)
