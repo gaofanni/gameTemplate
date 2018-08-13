@@ -397,7 +397,7 @@ class Game {
                     }
                     if (isHit(curPos, carPos, cur.ignore)) {
                         this.isGameOver = true;
-                        this.showPop()
+                        // this.showPop()
                     }
 
                     this.setDistance(speedRate)
@@ -829,7 +829,8 @@ class Game {
     /**道路对象构造函数 */
     routeFactory(point1: point, point2: point) {
         return y => {
-            return (y * (point1.x - point2.x) - point2.y * point1.x + point2.x * point1.y) / (point1.y - point2.y)
+            // return (y * (point1.x - point2.x) - point2.y * point1.x + point2.x * point1.y) / (point1.y - point2.y)
+            return (y - point1.y) / (point2.y - point1.y) * (point2.x - point1.x) + point1.x
         }
     }
     /**获得两点间缩放比例 */
